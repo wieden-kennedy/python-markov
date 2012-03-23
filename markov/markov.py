@@ -99,7 +99,10 @@ def score_for_line(line, client, key_length=2, completion_length=1, prefix=PREFI
     Score a line of text for fit based on our markov model
     """
     score, count = _score_for_line(line, client, key_length, completion_length, prefix)
-    return score/count
+    if count > 0:
+        return score/count
+    else:
+        return 0
 
 def get_key_and_completion(line, key_length, completion_length, prefix):
     """
