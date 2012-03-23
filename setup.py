@@ -10,7 +10,7 @@ setup(
     description="Some utility methods for generating and storing markov chains with python and redis",
     author="Grant Thomas",
     author_email="grant.thomas@wk.com",
-    url="https://github.com/grantthomas/python-markov",
+    url="https://github.com/wieden-kennedy/python-markov",
     version="0.0.1",
     install_requires=["redis"],
     packages=find_packages(),
