@@ -75,12 +75,8 @@ def score_for_completion(key, completion, client, normalize_to=100):
     """
     Get the normalized score for a completion
     """
-    print completion
     raw_score = client.zscore(key, make_key(completion)) or 0
-    print raw_score
     maximum = max_for_key(key, client) or 1
-    print maximum
-    print (raw_score/maximum) * normalize_to
     return (raw_score/maximum) * normalize_to
 
 def _score_for_line(line, client, key_length, completion_length, prefix, count=0):
