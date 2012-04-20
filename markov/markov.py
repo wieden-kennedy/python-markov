@@ -13,8 +13,8 @@ class Markov(object):
     """
     Simple wrapper for markov functions
     """
-    def __init__(self, prefix=None, key_length=2, completion_length=1, db=0, host='localhost', port=6379):
-        self.client = redis.Redis(db=db, host=host, port=port)
+    def __init__(self, prefix=None, key_length=2, completion_length=1, db=0, host='localhost', port=6379, password=None):
+        self.client = redis.Redis(db=db, host=host, port=port, password=password)
         self.prefix = prefix or PREFIX
         self.key_length = key_length
         self.completion_length = completion_length
