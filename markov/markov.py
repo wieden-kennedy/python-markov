@@ -2,6 +2,7 @@
 Functions for generating simple markov chains for sequences of words. Allows for scoring of
 sentences based on completion frequency.
 """
+import random
 import redis
 
 PREFIX = 'markov'
@@ -23,6 +24,9 @@ class Markov(object):
 
     def score_for_line(self, line):
         return score_for_line(line, self.client, self.key_length, self.completion_length, self.prefix)
+
+    def generate(self, seed=None, max_words=1000):
+        return generate(self.client, seed=seed, prefix=self.prefix, max_words=max_words, key_length=self.key_length)
     
 
 def add_line_to_index(line, client, key_length=2, completion_length=1, prefix=PREFIX):
@@ -103,6 +107,47 @@ def score_for_line(line, client, key_length=2, completion_length=1, prefix=PREFI
         return score/count
     else:
         return 0
+
+def generate(client, seed=None, prefix=None, max_words=1000, key_length=2):
+    """
+    Generate some text based on our model
+    """
+    if seed is None:
+        key = client.randomkey()
+        seed = key.split(SEPARATOR)
+        if prefix is not None:
+            while prefix not in key.split(SEPARATOR):
+                key = client.randomkey()
+                seed = key.split(SEPARATOR)
+            seed.remove(prefix)
+    else:
+        key = make_key(seed[-1*key_length:], prefix=prefix)
+
+    completion = get_completion(client, key)
+    if completion:
+        completion = completion.split(SEPARATOR)
+        if len(seed) + len(completion) < max_words:
+            seed += completion
+            return generate(client, seed, prefix, max_words, key_length)
+        elif len(seed) + len(completion) == max_words:
+            return seed + completion
+    else:
+        try:
+            seed.remove(STOP)
+        except:
+            pass
+        return seed
+
+def get_completion(client, key):
+    """
+    Get a possible complete for some key
+    """
+    completion = None
+    completions = client.zrevrange(key, 0, -1)
+    if len(completions) > 0:
+        completion = random.choice(completions)
+    return completion
+
 
 def get_key_and_completion(line, key_length, completion_length, prefix):
     """

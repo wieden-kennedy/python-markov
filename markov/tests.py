@@ -5,7 +5,7 @@ import redis
 import unittest
 import markov
 from markov import Markov, add_line_to_index, make_key, max_for_key, min_for_key,\
-     score_for_completion, score_for_line, get_key_and_completion
+     score_for_completion, score_for_line, get_key_and_completion, generate
 
 class TestMarkovFunctions(unittest.TestCase):
     """
@@ -108,6 +108,19 @@ class TestMarkovFunctions(unittest.TestCase):
         key, completion = get_key_and_completion(line, 4, 1, self.prefix)
         self.assertEqual(key, 'test:i:ate:a:peach')
         self.assertEqual(completion, markov.STOP)
+
+
+    def test_generate(self):
+        """
+        Test the generate function
+        """
+        self.test_add_line_to_index()
+        generated = generate(self.client, prefix=self.prefix, max_words=3)
+        assert len(generated) >= 2
+        assert len(generated) <= 3
+        generated = generate(self.client, seed=['ate','a'], prefix=self.prefix, max_words=3)
+        assert 'peach' in generated or 'pizza' in generated
+        assert 'sandwich' not in generated
         
     def tearDown(self):
         """
@@ -138,6 +151,16 @@ class TestMarkovClass(unittest.TestCase):
         self.test_add_line_to_index()
         line = ['i','ate','a','peach']
         self.assertEqual(self.markov.score_for_line(line), 100)
+       
+        
+    def test_generate(self):
+        self.test_add_line_to_index()
+        generated = self.markov.generate(max_words=3)
+        assert len(generated) >= 2
+        assert len(generated) <= 3
+        generated = self.markov.generate(seed=['ate','a'], max_words=3)
+        assert 'peach' in generated or 'sandwich' in generated
+        assert 'sandwich' not in generated
         
     def tearDown(self):
         """
