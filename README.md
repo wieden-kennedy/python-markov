@@ -7,16 +7,19 @@ Most of the functions are recursive, so don't go passing in a text of 1000+ word
 
 ## Usage
 Markov functions expects lists of tokens, you can add a line to your index like so.
+
     client = redis.Redis()
     line = ['some', 'words', 'that', 'you', 'would', 'like', 'to', 'add']	
     add_line_to_index(line, client, prefix="your_prefix")
 
-you can score a line like so:
+You can score a line like so:
+
     line = ['another', 'list', 'of', 'words']
     score = score_for_line(line, client, prefix="your_prefix")
     #score will be something between 0 and 100
 
-and you can generates line with or without a seed like so:
+...and you can generate lines with or without a seed like so:
+
     # a purely random list based on your data
     list_of_words = generate(client, prefix="your_prefix")
 
