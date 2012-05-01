@@ -85,6 +85,7 @@ It's recommended that you use the Markov class to add texts to your model, score
 
 For example, let's say you've collected a lot of Oprah transcripts and stored them in your model. Scoring a text
 would look something like this:
+
 ```python
 from markov import Markov
 
@@ -137,3 +138,5 @@ new_tweet = tweet_data.generate()
 #new tweet could be really long, or not!
 ```
 
+*Note: the functions in python-markov use tail recursion, so don't add a sequence longer than 1000 lines to your index or 
+you'll get an error because Python is like that*
