@@ -118,8 +118,8 @@ class TestMarkovFunctions(unittest.TestCase):
         generated = generate(self.client, prefix=self.prefix, max_words=3)
         assert len(generated) >= 2
         assert len(generated) <= 3
-        generated = generate(self.client, seed=['ate','a'], prefix=self.prefix, max_words=3)
-        assert 'peach' in generated or 'pizza' in generated
+        generated = generate(self.client, seed=['ate','one'], prefix=self.prefix, max_words=3)
+        assert generated[2] == 'peach'
         assert 'sandwich' not in generated
         
     def tearDown(self):
@@ -139,14 +139,16 @@ class TestMarkovClass(unittest.TestCase):
         self.markov = Markov(prefix="testclass",db=11)
 
     def test_add_line_to_index(self):
-        line = ['i','ate','a','peach']
+        line =  ['i','ate','a','peach']
         line1 = ['i','ate','one','peach']
         line2 = ['i','ate','a', 'sandwich']
 
         self.markov.add_line_to_index(line)
-        self.assertEqual(self.markov.client.zscore("testclass:i:ate", "a"), 1.0)
+        self.markov.add_line_to_index(line1)
+        self.markov.add_line_to_index(line2)
+        self.assertEqual(self.markov.client.zscore("testclass:i:ate", "a"), 2.0)
         self.assertEqual(self.markov.client.zscore("testclass:ate:a", "peach"), 1.0)
-
+                
     def test_score_for_line(self):
         self.test_add_line_to_index()
         line = ['i','ate','a','peach']
@@ -158,8 +160,9 @@ class TestMarkovClass(unittest.TestCase):
         generated = self.markov.generate(max_words=3)
         assert len(generated) >= 2
         assert len(generated) <= 3
-        generated = self.markov.generate(seed=['ate','a'], max_words=3)
-        assert 'peach' in generated or 'sandwich' in generated
+        generated = self.markov.generate(seed=['ate','one'], max_words=3)
+        print generated
+        assert 'peach' in generated 
         assert 'sandwich' not in generated
         
     def tearDown(self):

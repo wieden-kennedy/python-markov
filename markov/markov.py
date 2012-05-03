@@ -9,7 +9,7 @@ PREFIX = 'markov'
 SEPARATOR=':'
 STOP='\x02'
 
-PUNCTUATION = [",", ".", ";", "!","?","(",")"]
+PUNCTUATION = [",", ".", ";", "!","?","(",")", "...", "....", "....."]
 
 class Markov(object):
     """
@@ -27,8 +27,8 @@ class Markov(object):
     def score_for_line(self, line):
         return score_for_line(line, self.client, self.key_length, self.completion_length, self.prefix)
 
-    def generate(self, seed=None, min_words=2, max_words=1000, count_punctuation=True):
-        return generate(self.client, seed=seed, prefix=self.prefix, min_words=min_words, max_words=max_words, key_length=self.key_length, count_punctuation=count_punctuation)
+    def generate(self, seed=None, max_words=1000, count_punctuation=True):
+        return generate(self.client, seed=seed, prefix=self.prefix, max_words=max_words, key_length=self.key_length, count_punctuation=count_punctuation)
     
 
 def add_line_to_index(line, client, key_length=2, completion_length=1, prefix=PREFIX):
@@ -110,7 +110,7 @@ def score_for_line(line, client, key_length=2, completion_length=1, prefix=PREFI
     else:
         return 0
 
-def generate(client, seed=None, prefix=None, min_words=2, max_words=1000, key_length=2, count_punctuation=True):
+def generate(client, seed=None, prefix=None, max_words=1000, key_length=2, count_punctuation=True):
     """
     Generate some text based on our model
     """
@@ -120,31 +120,24 @@ def generate(client, seed=None, prefix=None, min_words=2, max_words=1000, key_le
         key = make_key(seed[-1*key_length:], prefix=prefix)
 
     completion = get_completion(client, key)
-    if completion and STOP not in completion.split(SEPARATOR):
+    if completion:
         completion = completion.split(SEPARATOR)
         if count_tokens(seed, count_punctuation) + count_tokens(completion, count_punctuation) < max_words:
             seed += completion
-            return generate(client, seed, prefix, min_words, max_words, key_length, count_punctuation)
+            return generate(client, seed, prefix, max_words, key_length, count_punctuation)
         elif count_tokens(seed, count_punctuation) + count_tokens(completion, count_punctuation) == max_words:
-            return seed + completion          
-    
-    elif count_tokens(seed, count_punctuation) <= min_words:
-        if STOP in seed:
-            seed.remove(STOP)
-        if count_tokens(seed, count_punctuation) - min_words > key_length:    
-            key, new_seed = get_random_key_and_seed(client, prefix)
-            seed += new_seed
-            return generate(client, seed, prefix, min_words, max_words, key_length, count_punctuation) 
-        else:
-            return seed
+            return seed + completion  
     else:
         try:
             seed.remove(STOP)
         except:
             pass
         return seed
-
+        
 def count_tokens(seed, count_punctuation=True):
+    """
+    Count the tokens in the given seed.
+    """
     if count_punctuation :
         return len(seed)
     else:
@@ -152,23 +145,30 @@ def count_tokens(seed, count_punctuation=True):
      
 
 def get_random_key_and_seed(client, prefix=None):
+    """
+    Get a random key from the data set and split it into a seed for sequence generation.
+    """
     key = client.randomkey()
-
     seed = key.split(SEPARATOR)
-    if prefix is not None:
-        while prefix not in seed or len([item for item in seed if item in PUNCTUATION]) > 0:
-            key = client.randomkey()
-            seed = key.split(SEPARATOR)
+    
+    while (prefix is not None and prefix not in seed) or \
+    (len([item for item in seed if item in PUNCTUATION]) > 0):
+        key = client.randomkey()
+        seed = key.split(SEPARATOR)
+        
+    if prefix in seed:
         seed.remove(prefix)
     return key, seed
     
-def get_completion(client, key, exclude_stops=False):
+def get_completion(client, key, exclude_stop=False):
     """
-    Get a possible complete for some key
+    Get a possible completion for some key
     """
     completion = None
     completions = client.zrevrange(key, 0, -1)
     if len(completions) > 0:
+        if exclude_stop:
+            completions = [item for item in completions if item != STOP]
         completion = random.choice(completions)
     return completion
 
