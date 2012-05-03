@@ -126,12 +126,12 @@ def generate(client, seed=None, prefix=None, max_words=1000, key_length=2, count
             seed += completion
             return generate(client, seed, prefix, max_words, key_length, count_punctuation)
         elif count_tokens(seed, count_punctuation) + count_tokens(completion, count_punctuation) == max_words:
+            if STOP in completion:
+                completion.remove(STOP)
             return seed + completion  
     else:
-        try:
+        if STOP in seed:
             seed.remove(STOP)
-        except:
-            pass
         return seed
         
 def count_tokens(seed, count_punctuation=True):
