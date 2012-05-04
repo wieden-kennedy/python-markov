@@ -27,8 +27,8 @@ class Markov(object):
     def score_for_line(self, line):
         return score_for_line(line, self.client, self.key_length, self.completion_length, self.prefix)
 
-    def generate(self, seed=None, max_words=1000, count_punctuation=True):
-        return generate(self.client, seed=seed, prefix=self.prefix, max_words=max_words, key_length=self.key_length, count_punctuation=count_punctuation)
+    def generate(self, seed=None, max_words=1000, quality_floor=0, count_punctuation=True):
+        return generate(self.client, seed=seed, prefix=self.prefix, quality_floor=quality_floor, max_words=max_words, key_length=self.key_length, count_punctuation=count_punctuation)
     
 
 def add_line_to_index(line, client, key_length=2, completion_length=1, prefix=PREFIX):
@@ -110,7 +110,7 @@ def score_for_line(line, client, key_length=2, completion_length=1, prefix=PREFI
     else:
         return 0
 
-def generate(client, seed=None, prefix=None, max_words=1000, key_length=2, count_punctuation=True):
+def generate(client, seed=None, prefix=None, max_words=1000, quality_floor=0, key_length=2, count_punctuation=True):
     """
     Generate some text based on our model
     """
@@ -120,11 +120,21 @@ def generate(client, seed=None, prefix=None, max_words=1000, key_length=2, count
         key = make_key(seed[-1*key_length:], prefix=prefix)
 
     completion = get_completion(client, key)
+    # if there's a quality_floor, choose only high quality completions or None
+    if completion and quality_floor > 0:
+         score = score_for_completion(key, completion, client)
+         exclude = []
+         while score < quality_floor and completion is not None:
+             exclude.append(completion)
+             completion = get_completion(client, key)
+             score = score_for_completion(key, completion, client)
+
+    #if we've found a completion, continue
     if completion:
         completion = completion.split(SEPARATOR)
         if count_tokens(seed, count_punctuation) + count_tokens(completion, count_punctuation) < max_words:
             seed += completion
-            return generate(client, seed, prefix, max_words, key_length, count_punctuation)
+            return generate(client, seed=seed, prefix=prefix, max_words=max_words, quality_floor=quality_floor, key_length=key_length, count_punctuation=count_punctuation)
         elif count_tokens(seed, count_punctuation) + count_tokens(completion, count_punctuation) == max_words:
             if STOP in completion:
                 completion.remove(STOP)
@@ -160,15 +170,14 @@ def get_random_key_and_seed(client, prefix=None):
         seed.remove(prefix)
     return key, seed
     
-def get_completion(client, key, exclude_stop=False):
+def get_completion(client, key, exclude=[]):
     """
     Get a possible completion for some key
     """
     completion = None
     completions = client.zrevrange(key, 0, -1)
-    if len(completions) > 0:
-        if exclude_stop:
-            completions = [item for item in completions if item != STOP]
+    completions = [item for item in completions if item not in exclude]
+    if len(completions) > 0:   
         completion = random.choice(completions)
     return completion
 
