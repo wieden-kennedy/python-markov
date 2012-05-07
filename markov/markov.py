@@ -27,8 +27,8 @@ class Markov(object):
     def score_for_line(self, line):
         return score_for_line(line, self.client, self.key_length, self.completion_length, self.prefix)
 
-    def generate(self, seed=None, max_words=1000, quality_floor=0, count_punctuation=True):
-        return generate(self.client, seed=seed, prefix=self.prefix, quality_floor=quality_floor, max_words=max_words, key_length=self.key_length, count_punctuation=count_punctuation)
+    def generate(self, seed=None, max_words=1000, quality_floor=0, count_punctuation=True, relevant_terms=None):
+        return generate(self.client, seed=seed, prefix=self.prefix, quality_floor=quality_floor, max_words=max_words, key_length=self.key_length, count_punctuation=count_punctuation, relevant_terms=relevant_terms)
     
 
 def add_line_to_index(line, client, key_length=2, completion_length=1, prefix=PREFIX):
@@ -110,23 +110,23 @@ def score_for_line(line, client, key_length=2, completion_length=1, prefix=PREFI
     else:
         return 0
 
-def generate(client, seed=None, prefix=None, max_words=1000, quality_floor=0, key_length=2, count_punctuation=True):
+def generate(client, seed=None, prefix=None, max_words=1000, quality_floor=0, key_length=2, count_punctuation=True, relevant_terms=None):
     """
     Generate some text based on our model
     """
     if seed is None:
-        key, seed = get_random_key_and_seed(client,prefix)      
+        key, seed = get_key_and_seed(client, prefix, relevant_terms=relevant_terms)      
     else:
         key = make_key(seed[-1*key_length:], prefix=prefix)
 
-    completion = get_completion(client, key)
+    completion = get_completion(client, key, relevant_terms=relevant_terms)
     # if there's a quality_floor, choose only high quality completions or None
     if completion and quality_floor > 0:
          score = score_for_completion(key, completion, client)
          exclude = []
          while score < quality_floor and completion is not None:
              exclude.append(completion)
-             completion = get_completion(client, key)
+             completion = get_completion(client, key, relevant_terms=relevant_terms)
              score = score_for_completion(key, completion, client)
 
     #if we've found a completion, continue
@@ -134,7 +134,7 @@ def generate(client, seed=None, prefix=None, max_words=1000, quality_floor=0, ke
         completion = completion.split(SEPARATOR)
         if count_tokens(seed, count_punctuation) + count_tokens(completion, count_punctuation) < max_words:
             seed += completion
-            return generate(client, seed=seed, prefix=prefix, max_words=max_words, quality_floor=quality_floor, key_length=key_length, count_punctuation=count_punctuation)
+            return generate(client, seed=seed, prefix=prefix, max_words=max_words, quality_floor=quality_floor, key_length=key_length, count_punctuation=count_punctuation, relevant_terms=relevant_terms)
         elif count_tokens(seed, count_punctuation) + count_tokens(completion, count_punctuation) == max_words:
             if STOP in completion:
                 completion.remove(STOP)
@@ -154,31 +154,76 @@ def count_tokens(seed, count_punctuation=True):
         return len([item for item in seed if item not in PUNCTUATION]) 
      
 
+def get_key_and_seed(client, prefix=None, relevant_terms=None):
+    """
+    Wraps get_random_key_and_seed and get_relevant_key_and_seed
+    """
+    if relevant_terms and len(relevant_terms) > 0:
+        return get_relevant_key_and_seed(client, relevant_terms, prefix)
+    else:
+        return get_random_key_and_seed(client, prefix)
+
+
 def get_random_key_and_seed(client, prefix=None):
     """
     Get a random key from the data set and split it into a seed for sequence generation.
     """
-    key = client.randomkey()
-    seed = key.split(SEPARATOR)
-    
-    while (prefix is not None and prefix not in seed) or \
-    (len([item for item in seed if item in PUNCTUATION]) > 0):
-        key = client.randomkey()
+    key = None
+    seed = []
+    while len(seed) == 0 or (len([item for item in seed if item in PUNCTUATION]) > 0):
+        if prefix:
+            key = random.choice(client.keys("%s%s*" % (prefix, SEPARATOR)))
+        else:
+            key = client.randomkey()
         seed = key.split(SEPARATOR)
-        
+    if prefix in seed:
+        seed.remove(prefix) 
+    return key, seed
+
+
+def get_relevant_key_and_seed(client, relevant_terms, prefix=None, tries=10):
+    """
+    Get a key that contains one of the terms from relevant_terms.
+    Limit the number of tries to avoid an infinite loop.
+    """
+    tried = 0
+    key = None
+    seed = []
+    while len(seed) == 0 or (len([item for item in seed if item in PUNCTUATION]) > 0) and tried < tries:
+        keys = []
+        for term in relevant_terms:
+            if prefix:
+                keys += client.keys("%s%s*%s*" % (prefix, SEPARATOR, term))
+            else:
+                keys += client.keys("*%s*" % term)
+        try:
+            key = random.choice(list(set(keys)))
+            seed = key.split(SEPARATOR)
+        except IndexError:
+            # there were no matching keys
+            break
+        tried += 1
     if prefix in seed:
         seed.remove(prefix)
     return key, seed
+        
     
-def get_completion(client, key, exclude=[]):
+def get_completion(client, key, exclude=[], relevant_terms=None):
     """
     Get a possible completion for some key
     """
     completion = None
     completions = client.zrevrange(key, 0, -1)
     completions = [item for item in completions if item not in exclude]
-    if len(completions) > 0:   
-        completion = random.choice(completions)
+    if len(completions) > 0:
+        if relevant_terms:
+            #make an attempt to use one of the relevant terms
+            try:
+                completion = random.choice([item for item in completions if item in relevant_terms])
+            except IndexError:
+                pass
+        if completion is None:
+            completion = random.choice(completions)
     return completion
 
 

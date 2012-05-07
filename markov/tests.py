@@ -5,7 +5,8 @@ import redis
 import unittest
 import markov
 from markov import Markov, add_line_to_index, make_key, max_for_key, min_for_key,\
-     score_for_completion, score_for_line, get_key_and_completion, generate
+     score_for_completion, score_for_line, get_key_and_completion, generate, get_relevant_key_and_seed, \
+     get_random_key_and_seed, get_completion, STOP
 
 class TestMarkovFunctions(unittest.TestCase):
     """
@@ -121,7 +122,61 @@ class TestMarkovFunctions(unittest.TestCase):
         generated = generate(self.client, seed=['ate','one'], prefix=self.prefix, max_words=3)
         assert generated[2] == 'peach'
         assert 'sandwich' not in generated
+
+        #test that relevant terms will be chosen when the relevant_terms argument is passed in
+        generated = generate(self.client, relevant_terms=["peach",], prefix=self.prefix)       
+        assert 'peach' in generated
+        generated = generate(self.client, relevant_terms=["sandwich",], prefix=self.prefix)
+        assert 'sandwich' in generated
+
+        #there are no pizza keys!
+        generated = generate(self.client, relevant_terms=["pizza",], prefix=self.prefix)
+        assert len(generated) == 0
+
+    def test_get_relevant_key_and_seed(self):
+        """
+        Test that get_relevant_key_and_seed functions as expected
+        """
+        #we get a key with sandwich in it
+        self.test_add_line_to_index()
+        key, seed = get_relevant_key_and_seed(self.client, relevant_terms=["sandwich",], prefix=self.prefix)
+        assert "sandwich" in seed
+
+        #pizza is not in our data set, so we get nothing
+        key, seed = get_relevant_key_and_seed(self.client, relevant_terms=["pizza",], prefix=self.prefix)
+        assert seed == []
+        assert key is None
+    
+    def test_get_random_key_and_seed(self):
+        """
+        Test that get_random_key_and_seed functions as expected
+        """
+        self.test_add_line_to_index()
+        key, seed = get_random_key_and_seed(self.client, prefix=self.prefix)
+        assert len(seed) == 2
+        assert self.prefix not in seed
+        assert self.prefix in key
+
+    def test_get_completion(self):
+        """
+        Test the get_completion method
+        """
+        self.test_add_line_to_index()
+        key, seed = get_random_key_and_seed(self.client, prefix=self.prefix)
+        if STOP not in seed:
+            assert get_completion(self.client, key) is not None
+        else:
+            assert get_completion(self.client, key) is None
+        key = "test:i:ate"
+        assert get_completion(self.client, key) in ["a", "one"]
+        #ensure that exclude works as expected
+        assert get_completion(self.client, key, exclude=["a",]) == "one"
+        assert get_completion(self.client, key, exclude=["a","one"]) is None
+
+        #ensure that relevant_terms works as well
+        assert get_completion(self.client, key, relevant_terms=["one",]) == "one"
         
+            
     def tearDown(self):
         """
         clean up our redis keys
@@ -161,7 +216,6 @@ class TestMarkovClass(unittest.TestCase):
         assert len(generated) >= 2
         assert len(generated) <= 3
         generated = self.markov.generate(seed=['ate','one'], max_words=3)
-        print generated
         assert 'peach' in generated 
         assert 'sandwich' not in generated
         
