@@ -189,7 +189,7 @@ def get_relevant_key_and_seed(client, relevant_terms, prefix=None, tries=10):
     tried = 0
     key = None
     seed = []
-    while len(seed) == 0 or (len([item for item in seed if item in PUNCTUATION]) > 0) and tried < tries:
+    while (len(seed) == 0 or (len([item for item in seed if item in PUNCTUATION]) > 0)) and tried < tries:
         keys = []
         for term in relevant_terms:
             if prefix:
