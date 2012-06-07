@@ -187,12 +187,12 @@ def get_relevant_key_and_seed(client, relevant_terms, prefix=None, tries=10):
                 keys += client.keys("%s%s*%s*" % (prefix, SEPARATOR, term))
             else:
                 keys += client.keys("*%s*" % term)
-            try:
-                key = random.choice(list(set(keys)))
-                seed = key.split(SEPARATOR)
-            except IndexError:
-                # there were no matching keys
-                break
+        try:
+            key = random.choice(list(set(keys)))
+            seed = key.split(SEPARATOR)
+        except IndexError:
+            # there were no matching keys
+            break
         tried += 1
     if prefix in seed:
         seed.remove(prefix)
