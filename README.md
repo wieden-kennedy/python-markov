@@ -19,7 +19,7 @@ of input texts.
 In the case of text, a Markov Chain could be used to answer the question, "Given the present word (or set of words), which words might possibly follow?".
 You could also use Markov Chains to answer the question, "Given the present word, how likely is it that this word I've chosen would be the next?".
 
-The goal of Python-Markov is to store Markov chains that model your choice of text.  You can use the included methods to generate new pieces of
+The goal of Python-Markov is to store Markov chains that model your choice of text.  You can use the included functions to generate new pieces of
 text that resemble your input values. You can also score a given piece of text for "good fit" with your data set.
 
 When you add a piece of text to Python-Markov, it breaks it down in to keys and possible completions, with a frequency.
@@ -43,7 +43,7 @@ data with "I ate", it would always be followed by "a". The next key, "ate a", co
 the keys "a pizza" and "a sandwich" will always be followed by EOL (end of line). While you can generate with a small data set, you'll
 need a lot of data to build longer, more interesting texts.
 
-You could also use the data mode to ascertain that "I ate one hammer" doesn't fit the model well, and isn't a thing that anyone would say ever. 
+You could also use the data to ascertain that "I ate one hammer" doesn't fit the model well, and isn't a thing that anyone would say ever. 
 
 You can read more about Markov Chains [here](http://en.wikipedia.org/wiki/Markov_chain) or [here](http://mathworld.wolfram.com/MarkovChain.html).
 
