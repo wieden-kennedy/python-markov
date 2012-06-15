@@ -29,6 +29,12 @@ class Markov(object):
 
     def generate(self, seed=None, max_words=1000, count_punctuation=True, relevant_terms=None):
         return generate(self.client, seed=seed, prefix=self.prefix, max_words=max_words, key_length=self.key_length, count_punctuation=count_punctuation, relevant_terms=relevant_terms)
+
+    def flush(self, prefix=None):
+        if prefix is not None:
+            keys = self.client.keys("%s*" % self.prefix)
+            for key in keys:
+                self.client.delete(key)
     
 
 def add_line_to_index(line, client, key_length=2, completion_length=1, prefix=PREFIX):

@@ -191,7 +191,7 @@ class TestMarkovClass(unittest.TestCase):
     Test that the Markov wrapper class behaves as expected
     """
     def setUp(self):
-        self.markov = Markov(prefix="testclass",db=11)
+        self.markov = Markov(prefix="testclass", db=11)
 
     def test_add_line_to_index(self):
         line =  ['i','ate','a','peach']
@@ -218,6 +218,36 @@ class TestMarkovClass(unittest.TestCase):
         generated = self.markov.generate(seed=['ate','one'], max_words=3)
         assert 'peach' in generated 
         assert 'sandwich' not in generated
+
+    def test_flush(self):
+        m1 = Markov(prefix="one", db=5)
+        m2 = Markov(prefix="two", db=5)
+
+        line =  ['i','ate','a','peach']
+        line1 = ['i','ate','one','peach']
+        line2 = ['i','ate','a', 'sandwich']
+
+        m1.add_line_to_index(line)
+        m1.add_line_to_index(line1)
+        m1.add_line_to_index(line2)
+
+        important_line =  ['we', 'all', 'have', 'phones']
+
+        m2.add_line_to_index(important_line)
+
+        r = redis.Redis(db=5)
+        assert len(r.keys("one:*")) == 6
+        assert len(r.keys("two:*")) == 3
+
+        m1.flush(prefix="one")
+
+        assert len(r.keys("one:*")) == 0
+        assert len(r.keys("two:*")) == 3
+
+        m2.flush(prefix="two")
+
+        assert len(r.keys("one:*")) == 0
+        assert len(r.keys("two:*")) == 0        
         
     def tearDown(self):
         """
