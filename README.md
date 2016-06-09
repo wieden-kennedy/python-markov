@@ -138,5 +138,5 @@ new_tweet = tweet_data.generate()
 #new tweet could be really long, or not!
 ```
 
-*Note: the functions in python-markov use tail recursion, so don't add a sequence more than 1000 items long to your index or 
+*Note: the functions in python-markov use recursion, so don't add a sequence more than 1000 items long to your index or 
 you'll get an error because Python is like that*
